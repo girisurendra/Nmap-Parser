@@ -3,11 +3,11 @@ Parse xml output of a Nmap scan and export to a CSV file.
 
 ## Usage
 ```
-### pip3 install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ```
-### python3 nmap-parse.py --help
+python3 nmap-parse.py --help
 usage: nmap-parse.py [-h] [-i IP] [-t TCP] [-u UDP] [-s SERVICE] [--nmap]
                      [--list] [-ps STATUS] [--export EXPORT]
                      file
@@ -40,14 +40,20 @@ optional arguments:
 
 ## Examples
 - List all IPs with status up
-    python3 nmap-parse.py <File_Name>
+
+    *python3 nmap-parse.py <File_Name>*
 - Display output of a specific IP in nmap format
-    python3 nmap-parse.py <File_Name> -i <IP_address> --nmap
+
+    *python3 nmap-parse.py <File_Name> -i <IP_address> --nmap*
 - Display IP address with specific ports as a list
-    python3 nmap-parse.py <File_Name> - t 53, 22 --list
+
+    *python3 nmap-parse.py <File_Name> - t 53, 22 --list*
 - Display IP address with specific service as a list
-    python3 nmap-parse.py <File_Name> -s http,dns --list
+
+    *python3 nmap-parse.py <File_Name> -s http,dns --list*
 - Display IP addresses with specific port status in nmap format
-    python3 nmap-parse.py <File_Name> -ps "open|filtered" -u 53 --nmap
+
+    *python3 nmap-parse.py <File_Name> -ps "open|filtered" -u 53 --nmap*
 - Export filtered output in CSV format
-    python3 nmap-parse.py Full_TCP.xml -t 53 --export port53.csv
+
+    *python3 nmap-parse.py Full_TCP.xml -t 53 --export port53.csv*
