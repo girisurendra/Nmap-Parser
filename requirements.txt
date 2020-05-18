@@ -1,6 +1,2 @@
-libnmap
 netaddr
-re
 argparse
-csv
-os
