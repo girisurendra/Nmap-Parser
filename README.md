@@ -56,4 +56,4 @@ optional arguments:
     *python3 nmap-parse.py <File_Name> -ps "open|filtered" -u 53 --nmap*
 - Export filtered output in CSV format
 
-    *python3 nmap-parse.py Full_TCP.xml -t 53 --export port53.csv*
+    *python3 nmap-parse.py <File_Name> -t 53 --export port53.csv*
