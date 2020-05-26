@@ -35,7 +35,8 @@ def filters(hosts, ips_up, service, tcp_ports, udp_ports, port_state, print_type
             else:
                 filter_by_IP(ip_address, udp_port_nmap, print_type, export_type, file)
         else:
-            zero_ports = zero_ports - 1
+            zero_ports -= 1
+
     if zero_ports == 0:
         print(
             "The given Nmap file has no ports with specified state (default is open). May be try a different -ps switch?")
@@ -44,16 +45,25 @@ def filters(hosts, ips_up, service, tcp_ports, udp_ports, port_state, print_type
 def full_port_list(host, protocol, port_state):
     """:returns tcp_ports & UDP_ports"""
     ports = []
+    no_ports = len(host.get_ports())
     for port, proto in host.get_ports():
-        if host.get_service(port, proto) is not None:
-            nmapservice = host.get_service(port, proto)
-            if nmapservice.state == port_state:
-                state = nmapservice.state
-                serviceName = nmapservice.service
-                banner = nmapservice.banner
-                script_results = nmapservice.scripts_results
-                if protocol == proto:
+        if proto == protocol:
+            if no_ports > 40000:
+                print(
+                    "The IP address {} has {} no.of ports open, therefore isn't filtered. Considering using --exculde-ip flag to exclude the IP.".format(
+                        host.address, no_ports))
+                break
+            else:
+                nmapservice = host.get_service(port, proto)
+                if nmapservice.state == port_state:
+                    state = nmapservice.state
+                    serviceName = nmapservice.service
+                    banner = nmapservice.banner
+                    script_results = nmapservice.scripts_results
                     ports.append((port, proto, state, serviceName, banner, script_results))
+        else:
+            break
+
     return ports
 
 
@@ -81,12 +91,6 @@ def filter_by_service(ip_address, service, port_nmap, print_type, export_type, f
         print_in_list('list_ip', ip_address, services_matched, export_type, file)
 
 
-'''Need to rename this function
-This function basically retrieves TCP/UDP port details for give IP address
-
-Also currently only works on no IP provided or one IP provided; need to work on list of IPs provided'''
-
-
 def filter_by_IP(ip_address, ports_nmap, print_type, export_type, file):
     if print_type == 'nmap':
         print_as_in_nmap(ip_address, ports_nmap, export_type, file)
@@ -97,7 +101,6 @@ def filter_by_IP(ip_address, ports_nmap, print_type, export_type, file):
 
 
 def filter_by_per_port(ip_address, ports, port_nmap, print_type, export_type, file):
-    """Need to work on UDP Port"""
     if ports is not None:
         ports_matched = []
         for port in ports:
@@ -114,15 +117,39 @@ def filter_by_per_port(ip_address, ports, port_nmap, print_type, export_type, fi
                 print_in_list('list_ip', ip_address, ports_matched, export_type, file)
 
 
-def print_default(live_ip, dead_ip, verbose=None):
-    if verbose is not None:
+def print_default(live_ip, dead_ip, hosts_up, hosts_down, verbose):
+    if verbose:
         total_ips = len(live_ip) + len(dead_ip)
-        print("Total no.of IP addresses:".format(total_ips))
-        print("No. of hosts with Windows OS:")
-        print("No. of host with Linux OS:")
-    print("Following IPs had status up:")
-    for lives_ip in live_ip:
-        print(lives_ip)
+        print("Total no.of IP addresses: {}".format(total_ips))
+        print("Total no.of IP address with status up: {}".format(len(live_ip)))
+        print("\n")
+        print("IPs(with status up)\tStatus\tNo.of Open ports(status=open)\thostname")
+        for hosts in hosts_up:
+            n_ports = len(hosts.get_open_ports())
+            status = hosts.status
+            hostname = hosts.hostnames
+            if len(hostname):
+                hostname = hostname[0]
+            else:
+                hostname = '-'
+            print("{}{}{}{}{}{}{}".format(hosts.address, ((24 - len(hosts.address)) * ' '), status,
+                                          ((8 - len(status)) * ' '), n_ports, ((32 - len(str(n_ports))) * ' '),
+                                          hostname))
+        if len(hosts_down) > 0:
+            print("IPs(with other status)\tStatus\t\thostname")
+            for hostsd in hosts_down:
+                status = hostsd.status
+                hostname = hostsd.hostnames
+                if len(hostname):
+                    hostname = hostname[0]
+                else:
+                    hostname = '-'
+                if len(hostname) > 0:
+                    print("{}{}{}{}{}".format(hostsd.address, ((24 - len(hostsd.address)) * ' '), status,
+                                              ((16 - len(status)) * ' '), hostname))
+    else:
+        for lives_ip in live_ip:
+            print(lives_ip)
 
 
 def print_as_in_nmap(ip_address, ports_nmap, export_type, file):
@@ -152,9 +179,14 @@ def print_as_in_nmap(ip_address, ports_nmap, export_type, file):
                     "{0}{1}{2}{3}{4}{5}{6}".format(pp, ((16 - len(pp)) * sp), state, ((16 - len(state)) * sp), service,
                                                    ((16 - len(service)) * sp), version))
                 if len(scripts) > 0:
+                    # print("|")
+                    # print(scripts)
                     for items in range(0, len(scripts)):
-                        del scripts[items]['elements']
-                        print(scripts[items]['output'])
+                        # del scripts[items]['elements']
+                        id = scripts[items]['id']
+                        output = scripts[items]['output']
+                        output = re.sub('\n', '\n |_', output) if '\n' in output else output
+                        print("|_{}:{}".format(id, output))
 
 
 def print_in_list(print_by, ip_address, ports_matched, export_type, file):
@@ -184,8 +216,7 @@ def print_in_list(print_by, ip_address, ports_matched, export_type, file):
     """ Print IP"""
     if print_by == 'list_ip':
         if ports_matched is not None:
-            if len(ports_matched) > 0:
-                print(ip_address)
+            print(ip_address)
 
 
 def export_file(ip_address, ports_matched, file):
@@ -269,6 +300,8 @@ if __name__ == '__main__':
     parser.add_argument("file", nargs=1, help="Nmap XML output")
     parser.add_argument("-i", "--ip",
                         help="specify a specific IP address or multiple IP addresses separated by comma or a subnet")
+    parser.add_argument("-ei", "--exclude-ip",
+                        help="specify a specific IP address or multiple IP addresses separated by comma or a subnet")
     parser.add_argument("-t", "--tcp",
                         help="specify the filter to parse/search TCP ports only. Comma separation/port ranges allowed")
     parser.add_argument("-u", "--udp",
@@ -281,6 +314,7 @@ if __name__ == '__main__':
                         help="specify the state of the port. Options are open, closed, filtered, unfiltered, \"open|filtered\", \"closed|filtered\"; by default only ports with open state are filtered ")
     parser.add_argument("--export",
                         help="export the filtered output to a csv file.")
+    parser.add_argument("-v", "--verbose", action='store_true', help="Give more detailed information!!")
 
     args = parser.parse_args()
     nmap_report = NmapParser.parse_fromfile(args.file[0])
@@ -292,19 +326,36 @@ if __name__ == '__main__':
     hosts_up, hosts_down, live_ip, dead_ip = get_up_down_hosts(hosts)
 
     '''Parsing IPs; Get alive IPs if IP addresses not specified'''
+    if not args.ip and not args.service and not args.tcp and not args.udp and not args.status and not args.nmap and not args.list and not args.export:
+        print_default(live_ip, dead_ip, hosts_up, hosts_down, args.verbose)
+        exit()
+
     ips_up = []
+    ips_excluded = []
+    if args.exclude_ip:
+        excluded_ip = parse_ip(args.exclude_ip)
+        for excluded_ip in excluded_ip:
+            for exclude_ip in live_ip:
+                if exclude_ip == excluded_ip:
+                    ips_excluded.append(exclude_ip)
+        if len(ips_excluded) == 0:
+            print("The IPs you've excluded do not have status up in the Nmap file you've provided")
+            exit()
+
     if args.ip:
         parsed_ip = parse_ip(args.ip)
         for parsed_ip in parsed_ip:
             for lives_ip in live_ip:
                 if lives_ip == parsed_ip:
                     ips_up.append(lives_ip)
+        ips_up = list(set(ips_up).difference(ips_excluded))
         if len(ips_up) == 0:
             print("You've entered \"Dead IP\"")
             exit()
     else:
         for host_up in hosts_up:
             ips_up.append(host_up.address)
+        ips_up = list(set(ips_up).difference(ips_excluded))
 
     '''Parsing services'''
     parsed_services = parse_service(args.service) if args.service else None
